@@ -1,0 +1,93 @@
+import processing.serial.*;
+
+Serial myPort; 
+String data = "";
+int angle = 0;
+int distance = 0;
+
+void setup() {
+  size(800, 500); // Sets the size of the radar window
+  smooth();
+  
+  // REPLACE "COM3" WITH YOUR ARDUINO'S COM PORT!
+  myPort = new Serial(this, "COM3", 9600); 
+  myPort.bufferUntil('\n'); // Read data until a newline character
+}
+
+void draw() {
+  background(0); // Black background
+  
+  // Move the origin (0,0) to the bottom center of the screen
+  pushMatrix();
+  translate(width/2, height - 20); 
+  
+  drawRadar();
+  drawSweepLine();
+  drawDetectedObject();
+  
+  popMatrix();
+}
+
+// Function to read the serial data from Arduino
+void serialEvent(Serial myPort) {
+  data = myPort.readStringUntil('\n');
+  if (data != null) {
+    data = trim(data); // Remove whitespace
+    String[] values = split(data, ','); // Split by comma
+    
+    // Ensure we received exactly two values (angle, distance)
+    if (values.length == 2) {
+      angle = int(values[0]);
+      distance = int(values[1]);
+    }
+  }
+}
+
+// Draws the green semi-circles and text
+void drawRadar() {
+  noFill();
+  strokeWeight(2);
+  stroke(98, 245, 31); // Radar Green
+  
+  // Draw arcs for distance markers
+  arc(0, 0, 700, 700, PI, TWO_PI);
+  arc(0, 0, 500, 500, PI, TWO_PI);
+  arc(0, 0, 300, 300, PI, TWO_PI);
+  arc(0, 0, 100, 100, PI, TWO_PI);
+  
+  // Draw angle lines
+  line(0, 0, -400, 0); // 180 degrees
+  line(0, 0, -200, -346); // 150 degrees
+  line(0, 0, -200, -346); // 120 degrees
+  line(0, 0, 0, -400); // 90 degrees
+  line(0, 0, 200, -346); // 60 degrees
+  line(0, 0, 346, -200); // 30 degrees
+  line(0, 0, 400, 0); // 0 degrees
+}
+
+// Draws the sweeping line indicating where the servo is currently looking
+void drawSweepLine() {
+  strokeWeight(4);
+  stroke(30, 250, 60); // Bright green
+  
+  // Math to convert polar coordinates (angle) to Cartesian (x,y)
+  float lineX = 400 * cos(radians(angle));
+  float lineY = -400 * sin(radians(angle)); // Negative because Y goes down in Processing
+  
+  line(0, 0, lineX, lineY);
+}
+
+// Draws a red mark if an object is within 30cm
+void drawDetectedObject() {
+  if (distance > 0 && distance <= 30) {
+    // Map the 30cm distance to the 400 pixel radius of our radar
+    float mappedDistance = map(distance, 0, 30, 0, 400);
+    
+    float objectX = mappedDistance * cos(radians(angle));
+    float objectY = -mappedDistance * sin(radians(angle));
+    
+    strokeWeight(8);
+    stroke(255, 10, 10); // Red
+    point(objectX, objectY);
+  }
+}
